@@ -4,12 +4,29 @@ class CashBalance:
     def __init__(self) -> None:
         pass
 
+    def input_cash_amount(self, name):
+        res = ''
+        regex = r'(^[0-9]+$)'
+        while bool(re.fullmatch(regex, res)) == False:
+            print('Enter amount of ' + name)
+            res = input()
+            res = re.sub(",", '', res)
+        return int(res)
+
     def get_current_cash_balance(self, cash_balance_dict):
         cash_balance = 0
         for key, value in cash_balance_dict.items():
             cash_balance += int(key) * int(value)
         return cash_balance
-        
+
+    def get_cash_balance_str(self, cash_dict):
+        cash_balance_str = ''
+        for key, value in cash_dict.items():
+            if value == 0:
+                continue
+            cash_balance_str += ' ¥' + str(key).rjust(5) + ': ' + str(value) + "\n"
+        return cash_balance_str
+
     def verify_cash(self, amount):
         cash_dict = self.calc_num_of_each_cash(self, amount)
         verified_cash_dict = self.arrange_cash_dict(self, cash_dict)
@@ -18,20 +35,24 @@ class CashBalance:
     def arrange_cash_dict(self, cash_dict):
         response = ''
         while response != 'y':
-            for key, value in cash_dict.items():
-                if value > 0:
-                    print(' ¥' + str(key).rjust(4) + ': ' + str(value))
+            cash_balance_str = self.get_cash_balance_str(self, cash_dict)
+            print(cash_balance_str)
             print('Is it collect? y/n')
             response = input()
             if response == 'y':
                 break
+            elif response != 'n':
+                continue
             print('Which cash do you break?')
             response = input()
-            regex = r'(5|10|50|100|500|1000|5000)'
-            if bool(re.fullmatch(regex, response) == False):
+            regex = r'(5|10|50|100|500|1000|5000|10000)'
+            if bool(re.fullmatch(regex, response)) == False:
                 print('Please retry.')
-                break
-            if response == '5000' and cash_dict["5000"] > 0:
+                continue
+            if response == '10000' and cash_dict["10000"] > 0:
+                cash_dict["10000"] -= 1
+                cash_dict["5000"] += 2
+            elif response == '5000' and cash_dict["5000"] > 0:
                 cash_dict["5000"] -= 1
                 cash_dict["1000"] += 5
             elif response == '1000' and cash_dict["1000"] > 0:
@@ -81,14 +102,3 @@ class CashBalance:
     def expense(self, price, pay_amount):
         change = pay_amount - price
         return change
-
-    def test(self, num):
-        if num < 10:
-            print('not yet..')
-            num += 1
-            self.test(self, num)
-        else:
-            return 'ok'
-
-    def test2(self):
-        self.test(self)
