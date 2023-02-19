@@ -1,16 +1,31 @@
 import re
+from datetime import date
 
 class CashBalance:
     def __init__(self) -> None:
         pass
 
-    def input_cash_amount(self, name):
-        res = ''
+    def verify_date_input(self):
+        is_regex_matched_res = False
+        while is_regex_matched_res == False:
+            print('Enter date value')
+            res = input()
+            regex = r'(^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$)'
+            res = re.split("\D", res)
+            res[1] = res[1].zfill(2)
+            res[2] = res[2].zfill(2)
+            res = "-".join(res)
+            is_regex_matched_res = bool(re.fullmatch(regex, res))
+        return res
+
+    def verify_amount_input(self, value):
+        print('Enter ' + value + ' value')
+        res = input()
         regex = r'(^[0-9]+$)'
         while bool(re.fullmatch(regex, res)) == False:
-            print('Enter amount of ' + name)
+            print('Please retry')
             res = input()
-            res = re.sub(",", '', res)
+            res = re.sub("\D", '', res)
         return int(res)
 
     def get_current_cash_balance(self, cash_balance_dict):
@@ -99,6 +114,73 @@ class CashBalance:
         }
         return cash
 
-    def expense(self, price, pay_amount):
+    def prepare_columns_for_cash_expenses_receipt(self, cbd, cur):
+        # Create the cash_expenses_receipt record
+        table = 'cash_expenses_receipt'
+        cash_expenses_receipt_columns = cbd.get_columns(cbd, cur, table)
+        cash_expenses_receipt_columns.remove("id")
+        cash_expenses_receipt_columns.remove("created_at")
+        cash_expenses_receipt_columns.remove("updated_at")
+        cash_expenses_receipt_columns = ",".join(cash_expenses_receipt_columns)
+        return cash_expenses_receipt_columns
+
+    def prepare_values_for_cash_expenses_receipt(self):
+        # Requirement of date
+        trans_date = date.today()
+        print(str(trans_date) + "\nDo you edit the date? y/n")
+        res = input()
+        if res != 'n':
+            print('Ok, enter date')
+            trans_date = self.verify_date_input(self)
+        print('Now you can leave a note about transaction.')
+        # Requirement of note
+        note = input()
+        # Requirement of category
+        print('And then enter category.')
+        category = input()
+        # Demand price and pay amount
+        price = self.verify_amount_input(self, 'price')
+        pay_amount = self.verify_amount_input(self, 'pay amount')
+        # Whether pay_amount is higher than price.
         change = pay_amount - price
-        return change
+        if change < 0:
+            print('Actually, you can\'t buy it.')
+            return
+        cash_expenses_receipt_values = {
+            "user_id" : ['int', 1],
+            "trans_date" : ['str', trans_date], 
+            "price" : ['int', price], 
+            "pay_amount" : ['int', pay_amount], 
+            "change" : ['int', change],
+            "cash_balance_jpy_id" : ['int', 1],
+            "currency" : ['str', 'JPY'],
+            "note" : ['str', note], 
+            "category" : ['str', category]
+        }
+        return cash_expenses_receipt_values
+
+    def register_cash_record(self, cbd, con, cur, pay_amount, change):
+        # Determine base information
+        pay_amount_dict = self.verify_cash(self, pay_amount)
+        if 0 < change:
+            print('Change: ' + str(change))
+            change_dict = self.verify_cash(self, change)
+        else:
+            change_dict = self.calc_num_of_each_cash(self, change)
+        # Show cash balance before registered
+        cash_balance_dict = cbd.select_all_cash_balance(cbd, cur)
+        cash_balance_int = self.get_current_cash_balance(self, cash_balance_dict)
+        print("Before purchase\nCash balance: ¥" + str(cash_balance_int))
+        cash_balance_str = self.get_cash_balance_str(self, cash_balance_dict)
+        print(cash_balance_str)
+        # Show cash balance after registered
+        managed_cash_balance_dict = self.manage(self, cash_balance_dict, pay_amount_dict, change_dict)
+        managed_cash_balance_int = self.get_current_cash_balance(self, managed_cash_balance_dict)
+        print("After purchase\nCash balance: ¥" + str(managed_cash_balance_int))
+        cash_balance_str = self.get_cash_balance_str(self, managed_cash_balance_dict)
+        print(cash_balance_str)
+        # Update cash_balance_jpyTBL
+        cbd.update_cash_balance(cbd, cur, con, managed_cash_balance_dict)
+        cash_balance_dict = cbd.select_all_cash_balance(cbd, cur)
+        cash_balance_int = self.get_current_cash_balance(self, cash_balance_dict)
+        print("Record updated\nNew cash balance: ¥" + str(cash_balance_int))
